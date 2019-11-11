@@ -38,6 +38,7 @@ DEFAULT_KI = 0
 DEFAULT_KD = 0
 DEFAULT_AUTOTUNE = "none"
 DEFAULT_NOISEBAND = 0.5
+DEFAULT_TARGET_TEMP_STEP = 0.5
 
 CONF_HEATER = 'heater'
 CONF_SENSOR = 'target_sensor'
@@ -53,6 +54,7 @@ CONF_INITIAL_HVAC_MODE = 'initial_hvac_mode'
 CONF_AWAY_TEMP = 'away_temp'
 CONF_PRECISION = 'precision'
 CONF_DIFFERENCE = 'difference'
+CONF_TARGET_TEMP_STEP = 'target_temp_step'
 CONF_KP = 'kp'
 CONF_KI = 'ki'
 CONF_KD = 'kd'
@@ -89,6 +91,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_PWM, default=DEFAULT_PWM): vol.Coerce(float),
     vol.Optional(CONF_AUTOTUNE, default=DEFAULT_AUTOTUNE): cv.string,
     vol.Optional(CONF_NOISEBAND, default=DEFAULT_NOISEBAND): vol.Coerce(float)
+    vol.Optional(CONF_TARGET_TEMP_STEP, default=DEFAULT_TARGET_TEMP_STEP): vol.Coerce(float)
 })
 
 
@@ -117,12 +120,13 @@ async def async_setup_platform(hass, config, async_add_entities,
     pwm = config.get(CONF_PWM)
     autotune = config.get(CONF_AUTOTUNE)
     noiseband = config.get(CONF_NOISEBAND)
+    target_temp_step = config.get(CONF_TARGET_TEMP_STEP)
 
     async_add_entities([SmartThermostat(
         name, heater_entity_id, sensor_entity_id, min_temp, max_temp,
         target_temp, ac_mode, min_cycle_duration, cold_tolerance,
         hot_tolerance, keep_alive, initial_hvac_mode, away_temp,
-        precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband)])
+        precision, unit, difference, kp, ki, kd, pwm, autotune, noiseband, target_temp_step)])
 
 
 class SmartThermostat(ClimateDevice, RestoreEntity):
@@ -132,7 +136,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
                  min_temp, max_temp, target_temp, ac_mode, min_cycle_duration,
                  cold_tolerance, hot_tolerance, keep_alive,
                  initial_hvac_mode, away_temp, precision, unit,
-                 difference, kp, ki, kd, pwm, autotune, noiseband):
+                 difference, kp, ki, kd, pwm, autotune, noiseband, target_temp_step):
         """Initialize the thermostat."""
         self._name = name
         self.heater_entity_id = heater_entity_id
@@ -172,6 +176,7 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         self.pwm = pwm
         self.autotune = autotune
         self.sensor_entity_id = sensor_entity_id
+        self.target_temp_step = target_temp_step
         self.time_changed = time.time()
         if self.autotune != "none":
             self.pidAutotune = pid_controller.PIDAutotune(self._target_temp, self.difference,
@@ -385,6 +390,11 @@ class SmartThermostat(ClimateDevice, RestoreEntity):
         #await self._async_control_heating()
         await self.async_update_ha_state()
 
+    @property
+    def target_temperature_step(self):
+        return self.target_temp_step
+
+    
     @callback
     def _async_switch_changed(self, entity_id, old_state, new_state):
         """Handle heater switch state changes."""
